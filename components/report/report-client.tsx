@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { QuestionReviewCard } from "@/components/report/question-review-card";
 import { ReportInsightList } from "@/components/report/report-insight-list";
 import { ReportStatCard } from "@/components/report/report-stat-card";
+import { StartNewSessionButton } from "@/components/shared/start-new-session-button";
 import { SurfaceCard } from "@/components/shared/surface-card";
 import {
   loadInterviewSession,
@@ -133,12 +133,9 @@ export function ReportClient() {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
               Next step
             </p>
-            <Link
-              href="/setup"
-              className="mt-5 inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-            >
-              Start a new interview
-            </Link>
+            <div className="mt-5">
+              <StartNewSessionButton label="Start a new interview" />
+            </div>
           </div>
         </div>
       </section>

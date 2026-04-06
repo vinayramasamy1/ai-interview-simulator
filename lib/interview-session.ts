@@ -1,4 +1,5 @@
 import type { InterviewSetupData } from "@/lib/interview-setup";
+import { isInterviewSetupData } from "@/lib/interview-setup";
 
 export const totalInterviewQuestions = 5;
 export const interviewSessionStorageKey = "ai-interview-simulator.session";
@@ -24,6 +25,7 @@ export type InterviewHistoryEntry = {
 
 export type InterviewSessionData = {
   setup: InterviewSetupData;
+  status: "active" | "completed";
   currentQuestionNumber: number;
   totalQuestions: number;
   currentQuestion: string | null;
@@ -86,21 +88,11 @@ export function loadInterviewSession() {
     if (
       !parsedValue ||
       typeof parsedValue !== "object" ||
-      !parsedValue.setup ||
+      !isInterviewSetupData(parsedValue.setup) ||
+      (parsedValue.status !== "active" && parsedValue.status !== "completed") ||
       typeof parsedValue.currentQuestionNumber !== "number" ||
       typeof parsedValue.totalQuestions !== "number" ||
       !Array.isArray(parsedValue.history)
-    ) {
-      return null;
-    }
-
-    const { setup } = parsedValue;
-
-    if (
-      typeof setup.interviewType !== "string" ||
-      typeof setup.targetRole !== "string" ||
-      typeof setup.experienceLevel !== "string" ||
-      typeof setup.jobDescription !== "string"
     ) {
       return null;
     }
@@ -125,12 +117,8 @@ export function loadInterviewSession() {
     });
 
     return {
-      setup: {
-        interviewType: setup.interviewType,
-        targetRole: setup.targetRole,
-        experienceLevel: setup.experienceLevel,
-        jobDescription: setup.jobDescription,
-      },
+      setup: parsedValue.setup,
+      status: parsedValue.status,
       currentQuestionNumber: parsedValue.currentQuestionNumber,
       totalQuestions: parsedValue.totalQuestions,
       currentQuestion:

@@ -22,8 +22,9 @@ const features = [
 
 export default function Home() {
   return (
-    <div className="page-frame flex w-full flex-col py-14 sm:py-16 lg:py-20">
+    <div className="page-frame flex w-full flex-col pt-14 pb-14 sm:pt-16 sm:pb-16 lg:pt-20 lg:pb-20">
       <PageHero
+        variant="home"
         badge="Practice smarter with AI-guided mock interviews"
         title="AI Interview Simulator"
         description="Practice behavioral and technical interviews with AI-generated questions, real-time coaching, and actionable feedback after every session."
@@ -43,9 +44,40 @@ export default function Home() {
             </Link>
           </div>
         }
+        supportPanel={
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-[1.8rem] border border-white/70 bg-white/85 p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Why it stands out
+              </p>
+              <p className="mt-3 text-base leading-7 text-slate-700">
+                A focused mock interview experience designed to feel like a
+                modern AI productivity tool, not a generic chatbot.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-[1.8rem] border border-white/70 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+                <p className="text-3xl font-semibold tracking-tight text-slate-950">
+                  5
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  guided questions per session
+                </p>
+              </div>
+              <div className="rounded-[1.8rem] border border-white/70 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+                <p className="text-3xl font-semibold tracking-tight text-slate-950">
+                  1 report
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  with coaching-ready takeaways
+                </p>
+              </div>
+            </div>
+          </div>
+        }
       />
 
-      <section className="ui-card rounded-[2.25rem] px-6 py-6 sm:px-8">
+      <section className="mt-8 border-t border-white/65 px-2 pt-8 sm:mt-10 sm:px-4 sm:pt-10 lg:mt-12">
         <div className="grid gap-6 md:grid-cols-3">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -75,9 +107,22 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mt-14 flex flex-col gap-3 text-center sm:mt-16">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
+          Core features
+        </p>
+        <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+          Everything you need for a strong practice loop
+        </h2>
+        <p className="mx-auto max-w-2xl text-base leading-7 text-slate-600">
+          Start with targeted setup, practice in a focused session, then review
+          strengths and improvement themes in one polished report.
+        </p>
+      </section>
+
       <section
         id="features"
-        className="mt-20 grid gap-6 md:grid-cols-3"
+        className="mt-10 grid gap-6 md:grid-cols-3"
         aria-label="Core features"
       >
         {features.map((feature) => (

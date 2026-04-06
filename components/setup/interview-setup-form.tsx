@@ -4,8 +4,10 @@ import { type ChangeEvent, type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SurfaceCard } from "@/components/shared/surface-card";
 import {
+  clearInterviewSetup,
   experienceLevels,
   interviewTypes,
+  saveInterviewSetupState,
   saveInterviewSetup,
   type ExperienceLevel,
   type InterviewSetupData,
@@ -114,6 +116,12 @@ export function InterviewSetupForm() {
     };
 
     setErrors({});
+    clearInterviewSetup();
+    saveInterviewSetupState({
+      setup: null,
+      status: "idle",
+      updatedAt: new Date().toISOString(),
+    });
     saveInterviewSetup(normalizedData);
     setSubmittedSetup(normalizedData);
     router.push("/interview");

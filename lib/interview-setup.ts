@@ -22,17 +22,78 @@ export type InterviewSetupData = {
   jobDescription: string;
 };
 
+export type InterviewSetupStatus = "idle" | "ready" | "active" | "completed";
+
+export type InterviewSetupState = {
+  setup: InterviewSetupData | null;
+  status: InterviewSetupStatus;
+  updatedAt?: string;
+};
+
 export const interviewSetupStorageKey = "ai-interview-simulator.setup";
 
-export function saveInterviewSetup(data: InterviewSetupData) {
+export function isInterviewSetupData(value: unknown): value is InterviewSetupData {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<InterviewSetupData>;
+
+  return (
+    typeof candidate.interviewType === "string" &&
+    interviewTypes.includes(candidate.interviewType as InterviewType) &&
+    typeof candidate.targetRole === "string" &&
+    candidate.targetRole.trim().length > 0 &&
+    typeof candidate.experienceLevel === "string" &&
+    experienceLevels.includes(candidate.experienceLevel as ExperienceLevel) &&
+    typeof candidate.jobDescription === "string"
+  );
+}
+
+export function areInterviewSetupsEqual(
+  left: InterviewSetupData | null,
+  right: InterviewSetupData | null,
+) {
+  if (!left || !right) {
+    return false;
+  }
+
+  return (
+    left.interviewType === right.interviewType &&
+    left.targetRole === right.targetRole &&
+    left.experienceLevel === right.experienceLevel &&
+    left.jobDescription === right.jobDescription
+  );
+}
+
+export function saveInterviewSetupState(state: InterviewSetupState) {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(interviewSetupStorageKey, JSON.stringify(data));
+  window.localStorage.setItem(interviewSetupStorageKey, JSON.stringify(state));
 }
 
-export function loadInterviewSetup() {
+export function saveInterviewSetup(
+  data: InterviewSetupData,
+  status: InterviewSetupStatus = "ready",
+) {
+  saveInterviewSetupState({
+    setup: data,
+    status,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export function clearInterviewSetup() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(interviewSetupStorageKey);
+}
+
+export function loadInterviewSetupState(): InterviewSetupState | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -44,24 +105,37 @@ export function loadInterviewSetup() {
   }
 
   try {
-    const parsedValue = JSON.parse(rawValue) as Partial<InterviewSetupData>;
+    const parsedValue = JSON.parse(rawValue) as Partial<InterviewSetupState>;
 
-    if (
-      typeof parsedValue.interviewType !== "string" ||
-      typeof parsedValue.targetRole !== "string" ||
-      typeof parsedValue.experienceLevel !== "string" ||
-      typeof parsedValue.jobDescription !== "string"
-    ) {
+    if (!parsedValue || typeof parsedValue !== "object") {
       return null;
     }
 
     return {
-      interviewType: parsedValue.interviewType as InterviewType,
-      targetRole: parsedValue.targetRole,
-      experienceLevel: parsedValue.experienceLevel as ExperienceLevel,
-      jobDescription: parsedValue.jobDescription,
-    } satisfies InterviewSetupData;
+      setup: isInterviewSetupData(parsedValue.setup) ? parsedValue.setup : null,
+      status:
+        parsedValue.status === "ready" ||
+        parsedValue.status === "active" ||
+        parsedValue.status === "completed" ||
+        parsedValue.status === "idle"
+          ? parsedValue.status
+          : "idle",
+      updatedAt:
+        typeof parsedValue.updatedAt === "string"
+          ? parsedValue.updatedAt
+          : undefined,
+    } satisfies InterviewSetupState;
   } catch {
     return null;
   }
+}
+
+export function loadInterviewSetup() {
+  const state = loadInterviewSetupState();
+
+  if (!state?.setup) {
+    return null;
+  }
+
+  return state.setup;
 }

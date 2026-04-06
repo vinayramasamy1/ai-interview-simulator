@@ -12,9 +12,39 @@ export default function SetupPage() {
   return (
     <div className="page-frame flex w-full flex-col py-14 sm:py-16 lg:py-20">
       <PageHero
+        variant="setup"
+        align="left"
         badge="Interview setup"
         title="Prepare your next practice session"
         description="Choose the interview style, define your target role, and tailor the session before you begin."
+        supportPanel={
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-[1.75rem] border border-sky-100 bg-white/82 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                Plan
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Choose the interview format and target role.
+              </p>
+            </div>
+            <div className="rounded-[1.75rem] border border-sky-100 bg-white/82 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                Tailor
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Add experience level and optional job context.
+              </p>
+            </div>
+            <div className="rounded-[1.75rem] border border-sky-100 bg-white/82 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                Launch
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Move directly into a focused interview workspace.
+              </p>
+            </div>
+          </div>
+        }
       />
 
       <section className="mt-12 grid gap-6 lg:grid-cols-[1.4fr_0.9fr] lg:items-start">

@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { navigationLinks, siteName } from "@/lib/site";
 
 export function SiteNavbar() {
+  const pathname = usePathname();
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/72 backdrop-blur-2xl">
       <div className="page-frame flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -24,12 +29,23 @@ export function SiteNavbar() {
           <ul className="flex flex-wrap items-center gap-2 sm:justify-end">
             {navigationLinks.map((link) => (
               <li key={link.href}>
+                {(() => {
+                  const isActive = pathname === link.href;
+
+                  return (
                 <Link
                   href={link.href}
-                  className="inline-flex min-h-10 items-center rounded-full border border-transparent bg-white/40 px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:-translate-y-0.5 hover:border-slate-200 hover:bg-white hover:text-slate-950"
+                  aria-current={isActive ? "page" : undefined}
+                  className={`inline-flex min-h-10 items-center rounded-full px-4 py-2 text-sm transition-all ${
+                    isActive
+                      ? "border border-slate-200 bg-slate-950 text-white shadow-[0_14px_34px_rgba(15,23,42,0.16)]"
+                      : "border border-transparent bg-white/40 font-medium text-slate-600 hover:-translate-y-0.5 hover:border-slate-200 hover:bg-white hover:text-slate-950"
+                  }`}
                 >
                   {link.label}
                 </Link>
+                  );
+                })()}
               </li>
             ))}
           </ul>
