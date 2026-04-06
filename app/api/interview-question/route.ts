@@ -10,30 +10,26 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function validateRequestBody(body: RequestBody) {
+function normalizeRequestBody(body: RequestBody): InterviewQuestionInput | null {
   const { interviewType, targetRole, experienceLevel, jobDescription } = body;
 
-  if (!isNonEmptyString(interviewType)) {
-    return "interviewType is required.";
-  }
-
-  if (!isNonEmptyString(targetRole)) {
-    return "targetRole is required.";
-  }
-
-  if (!isNonEmptyString(experienceLevel)) {
-    return "experienceLevel is required.";
-  }
-
   if (
-    jobDescription !== undefined &&
-    jobDescription !== null &&
-    typeof jobDescription !== "string"
+    !isNonEmptyString(interviewType) ||
+    !isNonEmptyString(targetRole) ||
+    !isNonEmptyString(experienceLevel)
   ) {
-    return "jobDescription must be a string when provided.";
+    return null;
   }
 
-  return null;
+  const normalizedJobDescription =
+    typeof jobDescription === "string" ? jobDescription.trim() : undefined;
+
+  return {
+    interviewType: interviewType.trim(),
+    targetRole: targetRole.trim(),
+    experienceLevel: experienceLevel.trim(),
+    jobDescription: normalizedJobDescription,
+  };
 }
 
 export async function POST(request: Request) {
@@ -48,19 +44,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const validationError = validateRequestBody(body);
+  const normalizedBody = normalizeRequestBody(body);
 
-  if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 });
+  if (!normalizedBody) {
+    return Response.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
   }
 
   try {
-    const question = await generateInterviewQuestion({
-      interviewType: body.interviewType.trim(),
-      targetRole: body.targetRole.trim(),
-      experienceLevel: body.experienceLevel.trim(),
-      jobDescription: body.jobDescription?.trim(),
-    });
+    const question = await generateInterviewQuestion(normalizedBody);
 
     return NextResponse.json({ question });
   } catch (error) {

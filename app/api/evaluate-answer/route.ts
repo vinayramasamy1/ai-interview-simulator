@@ -10,7 +10,7 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function validateRequestBody(body: RequestBody) {
+function normalizeRequestBody(body: RequestBody): AnswerEvaluationInput | null {
   const {
     currentQuestion,
     userAnswer,
@@ -19,27 +19,23 @@ function validateRequestBody(body: RequestBody) {
     experienceLevel,
   } = body;
 
-  if (!isNonEmptyString(currentQuestion)) {
-    return "currentQuestion is required.";
+  if (
+    !isNonEmptyString(currentQuestion) ||
+    !isNonEmptyString(userAnswer) ||
+    !isNonEmptyString(interviewType) ||
+    !isNonEmptyString(targetRole) ||
+    !isNonEmptyString(experienceLevel)
+  ) {
+    return null;
   }
 
-  if (!isNonEmptyString(userAnswer)) {
-    return "userAnswer is required.";
-  }
-
-  if (!isNonEmptyString(interviewType)) {
-    return "interviewType is required.";
-  }
-
-  if (!isNonEmptyString(targetRole)) {
-    return "targetRole is required.";
-  }
-
-  if (!isNonEmptyString(experienceLevel)) {
-    return "experienceLevel is required.";
-  }
-
-  return null;
+  return {
+    currentQuestion: currentQuestion.trim(),
+    userAnswer: userAnswer.trim(),
+    interviewType: interviewType.trim(),
+    targetRole: targetRole.trim(),
+    experienceLevel: experienceLevel.trim(),
+  };
 }
 
 export async function POST(request: Request) {
@@ -54,20 +50,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const validationError = validateRequestBody(body);
+  const normalizedBody = normalizeRequestBody(body);
 
-  if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 });
+  if (!normalizedBody) {
+    return Response.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
   }
 
   try {
-    const evaluation = await evaluateInterviewAnswer({
-      currentQuestion: body.currentQuestion.trim(),
-      userAnswer: body.userAnswer.trim(),
-      interviewType: body.interviewType.trim(),
-      targetRole: body.targetRole.trim(),
-      experienceLevel: body.experienceLevel.trim(),
-    });
+    const evaluation = await evaluateInterviewAnswer(normalizedBody);
 
     return NextResponse.json(evaluation);
   } catch (error) {

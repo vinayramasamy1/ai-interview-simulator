@@ -12,7 +12,10 @@ import {
   type InterviewType,
 } from "@/lib/interview-setup";
 
-type SetupFormData = InterviewSetupData & {
+type SetupFormData = Omit<
+  InterviewSetupData,
+  "interviewType" | "experienceLevel"
+> & {
   interviewType: InterviewType | "";
   experienceLevel: ExperienceLevel | "";
 };
@@ -25,6 +28,12 @@ const initialFormData: SetupFormData = {
   experienceLevel: "",
   jobDescription: "",
 };
+
+function hasValidSelections(
+  values: SetupFormData,
+): values is InterviewSetupData {
+  return values.interviewType !== "" && values.experienceLevel !== "";
+}
 
 export function InterviewSetupForm() {
   const router = useRouter();
@@ -83,11 +92,24 @@ export function InterviewSetupForm() {
       return;
     }
 
+    if (!hasValidSelections(formData)) {
+      setErrors((current) => ({
+        ...current,
+        interviewType:
+          formData.interviewType === ""
+            ? "Choose an interview type."
+            : current.interviewType,
+        experienceLevel:
+          formData.experienceLevel === ""
+            ? "Select your experience level."
+            : current.experienceLevel,
+      }));
+      return;
+    }
+
     const normalizedData: InterviewSetupData = {
       ...formData,
-      interviewType: formData.interviewType,
       targetRole: formData.targetRole.trim(),
-      experienceLevel: formData.experienceLevel,
       jobDescription: formData.jobDescription.trim(),
     };
 
