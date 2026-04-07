@@ -232,6 +232,14 @@ export function InterviewSessionClient() {
               </div>
               <div>
                 <dt className="font-semibold uppercase tracking-wide text-slate-500">
+                  Response Mode
+                </dt>
+                <dd className="mt-1 text-base text-slate-900">
+                  {setupData.responseMode}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold uppercase tracking-wide text-slate-500">
                   Job Description
                 </dt>
                 <dd className="mt-1 text-base leading-7 text-slate-700">
@@ -388,6 +396,12 @@ export function InterviewSessionClient() {
                 <p className="mt-2 text-lg font-semibold text-slate-950">
                   Question {currentQuestionNumber} of {totalInterviewQuestions}
                 </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Active response mode:{" "}
+                  <span className="font-semibold text-slate-900">
+                    {setupData?.responseMode}
+                  </span>
+                </p>
                 {setupData?.interviewType === "Resume-Based" &&
                 setupData.resumeFileName ? (
                   <p className="mt-2 text-sm text-sky-700">
@@ -428,6 +442,7 @@ export function InterviewSessionClient() {
                   interviewType={setupData?.interviewType}
                   experienceLevel={setupData?.experienceLevel}
                   targetRole={setupData?.targetRole}
+                  responseMode={setupData?.responseMode}
                   isEvaluating={evaluationState.status === "loading"}
                   answerLocked={evaluationState.status === "success"}
                   onSubmitAnswer={async (answer) => {

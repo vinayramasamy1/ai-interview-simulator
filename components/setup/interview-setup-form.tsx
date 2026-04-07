@@ -7,19 +7,22 @@ import {
   clearInterviewSetup,
   experienceLevels,
   interviewTypes,
+  responseModes,
   saveInterviewSetupState,
   saveInterviewSetup,
   type ExperienceLevel,
   type InterviewSetupData,
   type InterviewType,
+  type ResponseMode,
 } from "@/lib/interview-setup";
 
 type SetupFormData = Omit<
   InterviewSetupData,
-  "interviewType" | "experienceLevel"
+  "interviewType" | "experienceLevel" | "responseMode"
 > & {
   interviewType: InterviewType | "";
   experienceLevel: ExperienceLevel | "";
+  responseMode: ResponseMode | "";
 };
 
 type SetupFormErrors = Partial<Record<keyof SetupFormData, string>>;
@@ -28,6 +31,7 @@ const initialFormData: SetupFormData = {
   interviewType: "",
   targetRole: "",
   experienceLevel: "",
+  responseMode: "",
   jobDescription: "",
   resumeFileName: "",
   resumeText: "",
@@ -36,7 +40,11 @@ const initialFormData: SetupFormData = {
 function hasValidSelections(
   values: SetupFormData,
 ): values is InterviewSetupData {
-  return values.interviewType !== "" && values.experienceLevel !== "";
+  return (
+    values.interviewType !== "" &&
+    values.experienceLevel !== "" &&
+    values.responseMode !== ""
+  );
 }
 
 export function InterviewSetupForm() {
@@ -112,6 +120,8 @@ export function InterviewSetupForm() {
 
   function validate(values: SetupFormData) {
     const nextErrors: SetupFormErrors = {};
+    const normalizedResumeText = values.resumeText?.trim() ?? "";
+    const normalizedResumeFileName = values.resumeFileName?.trim() ?? "";
 
     if (!values.interviewType) {
       nextErrors.interviewType = "Choose an interview type.";
@@ -125,10 +135,14 @@ export function InterviewSetupForm() {
       nextErrors.experienceLevel = "Select your experience level.";
     }
 
+    if (!values.responseMode) {
+      nextErrors.responseMode = "Choose how you want to answer during the interview.";
+    }
+
     if (
       values.interviewType === "Resume-Based" &&
-      !values.resumeText.trim() &&
-      !values.resumeFileName.trim()
+      !normalizedResumeText &&
+      !normalizedResumeFileName
     ) {
       nextErrors.resumeText = "Upload a PDF resume to start a Resume-Based interview.";
     }
@@ -137,6 +151,9 @@ export function InterviewSetupForm() {
   }
 
   async function uploadResumeIfNeeded() {
+    const normalizedResumeFileName = formData.resumeFileName?.trim() ?? "";
+    const normalizedResumeText = formData.resumeText?.trim() ?? "";
+
     if (!isResumeBased) {
       return {
         resumeFileName: "",
@@ -144,10 +161,10 @@ export function InterviewSetupForm() {
       };
     }
 
-    if (formData.resumeText.trim() && formData.resumeFileName.trim()) {
+    if (normalizedResumeText && normalizedResumeFileName) {
       return {
-        resumeFileName: formData.resumeFileName.trim(),
-        resumeText: formData.resumeText.trim(),
+        resumeFileName: normalizedResumeFileName,
+        resumeText: normalizedResumeText,
       };
     }
 
@@ -211,13 +228,17 @@ export function InterviewSetupForm() {
           formData.experienceLevel === ""
             ? "Select your experience level."
             : current.experienceLevel,
+        responseMode:
+          formData.responseMode === ""
+            ? "Choose how you want to answer during the interview."
+            : current.responseMode,
       }));
       return;
     }
 
     let uploadedResume = {
-      resumeFileName: formData.resumeFileName.trim(),
-      resumeText: formData.resumeText.trim(),
+      resumeFileName: formData.resumeFileName?.trim() ?? "",
+      resumeText: formData.resumeText?.trim() ?? "",
     };
 
     try {
@@ -301,6 +322,70 @@ export function InterviewSetupForm() {
                 {errors.interviewType}
               </p>
             ) : null}
+          </div>
+
+          <div className="sm:col-span-2">
+            <fieldset>
+              <legend className="field-label">Response Mode</legend>
+              <p className="mt-2 helper-text">
+                Choose how you want to practice each answer before the session starts.
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {responseModes.map((mode) => {
+                  const isSelected = formData.responseMode === mode;
+                  const helperCopy =
+                    mode === "Written"
+                      ? "Best for practicing structure and clarity."
+                      : "Best for practicing live interview delivery.";
+
+                  return (
+                    <label
+                      key={mode}
+                      className={`cursor-pointer rounded-[1.6rem] border p-5 transition ${
+                        isSelected
+                          ? "border-slate-950 bg-slate-950 text-white shadow-[0_18px_50px_rgba(15,23,42,0.18)]"
+                          : "border-slate-200 bg-white/86 text-slate-900 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="responseMode"
+                        value={mode}
+                        checked={isSelected}
+                        onChange={handleChange}
+                        className="sr-only"
+                      />
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-lg font-semibold tracking-tight">
+                            {mode}
+                          </p>
+                          <p
+                            className={`mt-2 text-sm leading-6 ${
+                              isSelected ? "text-slate-200" : "text-slate-600"
+                            }`}
+                          >
+                            {helperCopy}
+                          </p>
+                        </div>
+                        <span
+                          className={`mt-1 h-4 w-4 rounded-full border ${
+                            isSelected
+                              ? "border-white bg-white"
+                              : "border-slate-300 bg-transparent"
+                          }`}
+                        />
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              {errors.responseMode ? (
+                <p className="mt-3 text-sm text-rose-600">
+                  {errors.responseMode}
+                </p>
+              ) : null}
+            </fieldset>
           </div>
 
           <div>
@@ -443,7 +528,7 @@ export function InterviewSetupForm() {
 
         <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="helper-text">
-            Required fields: interview type, target role, experience level, and a PDF resume for Resume-Based sessions.
+            Required fields: interview type, target role, experience level, response mode, and a PDF resume for Resume-Based sessions.
           </p>
           <button
             type="submit"

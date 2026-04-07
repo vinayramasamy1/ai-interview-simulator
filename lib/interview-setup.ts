@@ -12,13 +12,17 @@ export const experienceLevels = [
   "Senior",
 ] as const;
 
+export const responseModes = ["Written", "Spoken"] as const;
+
 export type InterviewType = (typeof interviewTypes)[number];
 export type ExperienceLevel = (typeof experienceLevels)[number];
+export type ResponseMode = (typeof responseModes)[number];
 
 export type InterviewSetupData = {
   interviewType: InterviewType;
   targetRole: string;
   experienceLevel: ExperienceLevel;
+  responseMode: ResponseMode;
   jobDescription: string;
   resumeFileName?: string;
   resumeText?: string;
@@ -48,6 +52,8 @@ export function isInterviewSetupData(value: unknown): value is InterviewSetupDat
     candidate.targetRole.trim().length > 0 &&
     typeof candidate.experienceLevel === "string" &&
     experienceLevels.includes(candidate.experienceLevel as ExperienceLevel) &&
+    typeof candidate.responseMode === "string" &&
+    responseModes.includes(candidate.responseMode as ResponseMode) &&
     typeof candidate.jobDescription === "string" &&
     (candidate.resumeFileName === undefined ||
       typeof candidate.resumeFileName === "string") &&
@@ -72,6 +78,7 @@ export function areInterviewSetupsEqual(
     left.interviewType === right.interviewType &&
     left.targetRole === right.targetRole &&
     left.experienceLevel === right.experienceLevel &&
+    left.responseMode === right.responseMode &&
     left.jobDescription === right.jobDescription &&
     left.resumeFileName === right.resumeFileName &&
     left.resumeText === right.resumeText

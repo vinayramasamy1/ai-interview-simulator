@@ -6,6 +6,7 @@ const setupTips = [
   "Behavioral sessions for storytelling and communication practice",
   "Technical or system design sessions for deeper problem solving",
   "Resume-based prompts tailored to your target role and background",
+  "Written or spoken response modes depending on how you want to practice",
 ];
 
 export default function SetupPage() {
@@ -24,7 +25,7 @@ export default function SetupPage() {
                 Plan
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Choose the interview format and target role.
+                Choose the interview format, target role, and response mode.
               </p>
             </div>
             <div className="rounded-[1.75rem] border border-sky-100 bg-white/82 px-5 py-4">

@@ -186,6 +186,15 @@ export function ReportClient() {
           accent="success"
         />
         <ReportStatCard
+          label="Response mode"
+          value={session.setup.responseMode}
+          detail={
+            session.setup.responseMode === "Spoken"
+              ? "Completed using microphone capture and transcript-based evaluation."
+              : "Completed using typed responses."
+          }
+        />
+        <ReportStatCard
           label="Best question"
           value={
             reportSummary?.highestScoringQuestion
@@ -243,7 +252,11 @@ export function ReportClient() {
           <p className="mt-3 text-sm leading-6 text-slate-600">
             This report is generated from the locally stored session history for
             the MVP, including scores, strengths, improvements, and concise
-            feedback for each answered question.
+            feedback for each answered question. This session used{" "}
+            <span className="font-semibold text-slate-900">
+              {session.setup.responseMode}
+            </span>{" "}
+            responses.
           </p>
         </SurfaceCard>
       </section>

@@ -1,10 +1,13 @@
 import { AnswerComposer } from "@/components/interview/answer-composer";
+import { SpokenAnswerComposer } from "@/components/interview/spoken-answer-composer";
+import type { ResponseMode } from "@/lib/interview-setup";
 
 type QuestionPanelProps = {
   question: string;
   interviewType?: string;
   experienceLevel?: string;
   targetRole?: string;
+  responseMode?: ResponseMode;
   isEvaluating?: boolean;
   answerLocked?: boolean;
   onSubmitAnswer: (answer: string) => Promise<void> | void;
@@ -15,6 +18,7 @@ export function QuestionPanel({
   interviewType,
   experienceLevel,
   targetRole,
+  responseMode = "Written",
   isEvaluating = false,
   answerLocked = false,
   onSubmitAnswer,
@@ -33,17 +37,25 @@ export function QuestionPanel({
       </p>
       <div className="mt-8 flex flex-wrap gap-3 text-sm text-slate-500">
         <span className="ui-chip">{interviewType}</span>
-        <span className="ui-chip">
-          {experienceLevel}
-        </span>
+        <span className="ui-chip">{experienceLevel}</span>
         <span className="ui-chip">{targetRole}</span>
+        <span className="ui-chip">{responseMode} responses</span>
       </div>
 
-      <AnswerComposer
-        disabled={answerLocked}
-        isSubmitting={isEvaluating}
-        onSubmitAnswer={onSubmitAnswer}
-      />
+      {responseMode === "Spoken" ? (
+        <SpokenAnswerComposer
+          disabled={answerLocked}
+          isSubmitting={isEvaluating}
+          onSubmitAnswer={onSubmitAnswer}
+        />
+      ) : (
+        <AnswerComposer
+          disabled={answerLocked}
+          isSubmitting={isEvaluating}
+          onSubmitAnswer={onSubmitAnswer}
+          modeLabel="Written mode"
+        />
+      )}
     </div>
   );
 }

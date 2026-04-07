@@ -6,12 +6,14 @@ type AnswerComposerProps = {
   disabled?: boolean;
   isSubmitting?: boolean;
   onSubmitAnswer: (answer: string) => Promise<void> | void;
+  modeLabel?: string;
 };
 
 export function AnswerComposer({
   disabled = false,
   isSubmitting = false,
   onSubmitAnswer,
+  modeLabel = "Written mode",
 }: AnswerComposerProps) {
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +39,14 @@ export function AnswerComposer({
     <form className="mt-8 border-t border-slate-200 pt-8" onSubmit={handleSubmit}>
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-lg font-semibold text-slate-950">Your answer</h3>
-        <p className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-500">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="rounded-full bg-sky-50 px-3 py-1 text-sm text-sky-800">
+            {modeLabel}
+          </p>
+          <p className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-500">
           {characterCount} characters
-        </p>
+          </p>
+        </div>
       </div>
 
       <label htmlFor="answer" className="sr-only">
