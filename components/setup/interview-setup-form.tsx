@@ -29,6 +29,8 @@ const initialFormData: SetupFormData = {
   targetRole: "",
   experienceLevel: "",
   jobDescription: "",
+  resumeFileName: "",
+  resumeText: "",
 };
 
 function hasValidSelections(
@@ -44,6 +46,12 @@ export function InterviewSetupForm() {
   const [submittedSetup, setSubmittedSetup] = useState<InterviewSetupData | null>(
     null,
   );
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeUploadState, setResumeUploadState] = useState<
+    "idle" | "uploading"
+  >("idle");
+
+  const isResumeBased = formData.interviewType === "Resume-Based";
 
   function handleChange(
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -53,15 +61,51 @@ export function InterviewSetupForm() {
     setFormData((current) => ({
       ...current,
       [name]: value,
+      ...(name === "interviewType" && value !== "Resume-Based"
+        ? {
+            resumeFileName: "",
+            resumeText: "",
+          }
+        : {}),
     }));
 
+    if (name === "interviewType" && value !== "Resume-Based") {
+      setResumeFile(null);
+    }
+
     setErrors((current) => {
-      if (!current[name as keyof SetupFormData]) {
+      if (
+        !current[name as keyof SetupFormData] &&
+        !(name === "interviewType" && current.resumeText)
+      ) {
         return current;
       }
 
       const nextErrors = { ...current };
       delete nextErrors[name as keyof SetupFormData];
+      if (name === "interviewType") {
+        delete nextErrors.resumeText;
+      }
+      return nextErrors;
+    });
+  }
+
+  function handleResumeChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0] ?? null;
+
+    setResumeFile(nextFile);
+    setFormData((current) => ({
+      ...current,
+      resumeFileName: nextFile?.name ?? "",
+      resumeText: "",
+    }));
+    setErrors((current) => {
+      if (!current.resumeText) {
+        return current;
+      }
+
+      const nextErrors = { ...current };
+      delete nextErrors.resumeText;
       return nextErrors;
     });
   }
@@ -81,10 +125,72 @@ export function InterviewSetupForm() {
       nextErrors.experienceLevel = "Select your experience level.";
     }
 
+    if (
+      values.interviewType === "Resume-Based" &&
+      !values.resumeText.trim() &&
+      !values.resumeFileName.trim()
+    ) {
+      nextErrors.resumeText = "Upload a PDF resume to start a Resume-Based interview.";
+    }
+
     return nextErrors;
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function uploadResumeIfNeeded() {
+    if (!isResumeBased) {
+      return {
+        resumeFileName: "",
+        resumeText: "",
+      };
+    }
+
+    if (formData.resumeText.trim() && formData.resumeFileName.trim()) {
+      return {
+        resumeFileName: formData.resumeFileName.trim(),
+        resumeText: formData.resumeText.trim(),
+      };
+    }
+
+    if (!resumeFile) {
+      throw new Error("Upload a PDF resume to start a Resume-Based interview.");
+    }
+
+    const uploadData = new FormData();
+    uploadData.append("resume", resumeFile);
+
+    setResumeUploadState("uploading");
+
+    try {
+      const response = await fetch("/api/resume-upload", {
+        method: "POST",
+        body: uploadData,
+      });
+
+      const payload = (await response.json()) as
+        | { fileName?: string; resumeText?: string; error?: string }
+        | undefined;
+
+      if (!response.ok || !payload?.resumeText || !payload.fileName) {
+        throw new Error(payload?.error || "Unable to process the uploaded resume.");
+      }
+
+      const uploadedResume = {
+        resumeFileName: payload.fileName.trim(),
+        resumeText: payload.resumeText.trim(),
+      };
+
+      setFormData((current) => ({
+        ...current,
+        ...uploadedResume,
+      }));
+
+      return uploadedResume;
+    } finally {
+      setResumeUploadState("idle");
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const nextErrors = validate(formData);
@@ -109,10 +215,34 @@ export function InterviewSetupForm() {
       return;
     }
 
+    let uploadedResume = {
+      resumeFileName: formData.resumeFileName.trim(),
+      resumeText: formData.resumeText.trim(),
+    };
+
+    try {
+      uploadedResume = await uploadResumeIfNeeded();
+    } catch (error) {
+      setErrors((current) => ({
+        ...current,
+        resumeText:
+          error instanceof Error
+            ? error.message
+            : "Unable to process the uploaded resume.",
+      }));
+      return;
+    }
+
     const normalizedData: InterviewSetupData = {
       ...formData,
       targetRole: formData.targetRole.trim(),
       jobDescription: formData.jobDescription.trim(),
+      ...(isResumeBased
+        ? uploadedResume
+        : {
+            resumeFileName: undefined,
+            resumeText: undefined,
+          }),
     };
 
     setErrors({});
@@ -256,15 +386,71 @@ export function InterviewSetupForm() {
           </p>
         </div>
 
+        {isResumeBased ? (
+          <div className="rounded-[1.9rem] border border-sky-100 bg-[linear-gradient(180deg,rgba(240,249,255,0.95),rgba(255,255,255,0.9))] p-5 shadow-[0_18px_45px_rgba(14,165,233,0.08)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
+                  Resume context
+                </p>
+                <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
+                  Upload your PDF resume for a more personal interview
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Upload a PDF resume to tailor questions to your real projects,
+                  skills, and experience.
+                </p>
+              </div>
+              <span className="ui-chip bg-white/90 text-sky-800">
+                PDF only
+              </span>
+            </div>
+
+            <div className="mt-5 rounded-[1.5rem] border border-dashed border-sky-200 bg-white/80 p-5">
+              <label
+                htmlFor="resumeUpload"
+                className="field-label"
+              >
+                Resume PDF
+              </label>
+              <input
+                id="resumeUpload"
+                name="resumeUpload"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={handleResumeChange}
+                aria-invalid={Boolean(errors.resumeText)}
+                aria-describedby={errors.resumeText ? "resumeUpload-error" : undefined}
+                className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
+              />
+              <p className="mt-3 helper-text">
+                We extract text on the server and store only the resume context
+                needed to personalize this interview.
+              </p>
+              {formData.resumeFileName ? (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  Selected resume: <span className="font-semibold">{formData.resumeFileName}</span>
+                </div>
+              ) : null}
+              {errors.resumeText ? (
+                <p id="resumeUpload-error" className="mt-3 text-sm text-rose-600">
+                  {errors.resumeText}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="helper-text">
-            Required fields: interview type, target role, and experience level.
+            Required fields: interview type, target role, experience level, and a PDF resume for Resume-Based sessions.
           </p>
           <button
             type="submit"
             className="btn-primary"
+            disabled={resumeUploadState === "uploading"}
           >
-            Start Interview
+            {resumeUploadState === "uploading" ? "Uploading Resume..." : "Start Interview"}
           </button>
         </div>
 
@@ -272,7 +458,10 @@ export function InterviewSetupForm() {
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             Setup saved locally for this session: {submittedSetup.interviewType}{" "}
             interview for a {submittedSetup.experienceLevel.toLowerCase()}{" "}
-            {submittedSetup.targetRole}.
+            {submittedSetup.targetRole}
+            {submittedSetup.resumeFileName
+              ? ` using ${submittedSetup.resumeFileName}.`
+              : "."}
           </div>
         ) : null}
       </form>

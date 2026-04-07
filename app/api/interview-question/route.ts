@@ -11,7 +11,13 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function normalizeRequestBody(body: RequestBody): InterviewQuestionInput | null {
-  const { interviewType, targetRole, experienceLevel, jobDescription } = body;
+  const {
+    interviewType,
+    targetRole,
+    experienceLevel,
+    jobDescription,
+    resumeText,
+  } = body;
 
   if (
     !isNonEmptyString(interviewType) ||
@@ -23,12 +29,22 @@ function normalizeRequestBody(body: RequestBody): InterviewQuestionInput | null 
 
   const normalizedJobDescription =
     typeof jobDescription === "string" ? jobDescription.trim() : undefined;
+  const normalizedResumeText =
+    typeof resumeText === "string" ? resumeText.trim() : undefined;
+
+  if (
+    interviewType.trim() === "Resume-Based" &&
+    !normalizedResumeText
+  ) {
+    return null;
+  }
 
   return {
     interviewType: interviewType.trim(),
     targetRole: targetRole.trim(),
     experienceLevel: experienceLevel.trim(),
     jobDescription: normalizedJobDescription,
+    resumeText: normalizedResumeText,
   };
 }
 

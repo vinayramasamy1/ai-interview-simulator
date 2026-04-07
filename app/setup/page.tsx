@@ -32,7 +32,7 @@ export default function SetupPage() {
                 Tailor
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Add experience level and optional job context.
+                Add experience level, optional job context, or a resume PDF.
               </p>
             </div>
             <div className="rounded-[1.75rem] border border-sky-100 bg-white/82 px-5 py-4">
@@ -64,8 +64,9 @@ export default function SetupPage() {
 
           <SurfaceCard title="MVP note">
             <p className="helper-text">
-              The form currently keeps all setup data in local component state.
-              We are not connecting any API or persistence layer yet.
+              Resume uploads are parsed server-side, then only the extracted
+              resume text needed for question tailoring is stored in the local
+              interview setup state.
             </p>
           </SurfaceCard>
         </div>

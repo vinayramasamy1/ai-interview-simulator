@@ -204,8 +204,14 @@ export function InterviewSessionClient() {
                 <dt className="font-semibold uppercase tracking-wide text-slate-500">
                   Interview Type
                 </dt>
-                <dd className="mt-1 text-base text-slate-900">
-                  {setupData.interviewType}
+                <dd className="mt-1 flex flex-wrap items-center gap-2 text-base text-slate-900">
+                  <span>{setupData.interviewType}</span>
+                  {setupData.interviewType === "Resume-Based" &&
+                  setupData.resumeFileName ? (
+                    <span className="ui-chip bg-sky-50 text-sky-800">
+                      Personalized from {setupData.resumeFileName}
+                    </span>
+                  ) : null}
                 </dd>
               </div>
               <div>
@@ -232,6 +238,19 @@ export function InterviewSessionClient() {
                   {setupData.jobDescription || "No job description provided."}
                 </dd>
               </div>
+              {setupData.interviewType === "Resume-Based" ? (
+                <div>
+                  <dt className="font-semibold uppercase tracking-wide text-slate-500">
+                    Resume Context
+                  </dt>
+                  <dd className="mt-1 text-base leading-7 text-slate-700">
+                    Questions are tailored using the uploaded resume
+                    {setupData.resumeFileName
+                      ? ` (${setupData.resumeFileName})`
+                      : ""}.
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           ) : (
             <p className="text-slate-600">
@@ -369,6 +388,12 @@ export function InterviewSessionClient() {
                 <p className="mt-2 text-lg font-semibold text-slate-950">
                   Question {currentQuestionNumber} of {totalInterviewQuestions}
                 </p>
+                {setupData?.interviewType === "Resume-Based" &&
+                setupData.resumeFileName ? (
+                  <p className="mt-2 text-sm text-sky-700">
+                    Personalized from your uploaded resume: {setupData.resumeFileName}
+                  </p>
+                ) : null}
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 sm:max-w-56">
                 <div

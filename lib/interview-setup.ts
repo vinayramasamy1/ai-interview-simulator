@@ -20,6 +20,8 @@ export type InterviewSetupData = {
   targetRole: string;
   experienceLevel: ExperienceLevel;
   jobDescription: string;
+  resumeFileName?: string;
+  resumeText?: string;
 };
 
 export type InterviewSetupStatus = "idle" | "ready" | "active" | "completed";
@@ -46,7 +48,15 @@ export function isInterviewSetupData(value: unknown): value is InterviewSetupDat
     candidate.targetRole.trim().length > 0 &&
     typeof candidate.experienceLevel === "string" &&
     experienceLevels.includes(candidate.experienceLevel as ExperienceLevel) &&
-    typeof candidate.jobDescription === "string"
+    typeof candidate.jobDescription === "string" &&
+    (candidate.resumeFileName === undefined ||
+      typeof candidate.resumeFileName === "string") &&
+    (candidate.resumeText === undefined || typeof candidate.resumeText === "string") &&
+    ((candidate.interviewType as InterviewType) !== "Resume-Based" ||
+      (typeof candidate.resumeFileName === "string" &&
+        candidate.resumeFileName.trim().length > 0 &&
+        typeof candidate.resumeText === "string" &&
+        candidate.resumeText.trim().length > 0))
   );
 }
 
@@ -62,7 +72,9 @@ export function areInterviewSetupsEqual(
     left.interviewType === right.interviewType &&
     left.targetRole === right.targetRole &&
     left.experienceLevel === right.experienceLevel &&
-    left.jobDescription === right.jobDescription
+    left.jobDescription === right.jobDescription &&
+    left.resumeFileName === right.resumeFileName &&
+    left.resumeText === right.resumeText
   );
 }
 

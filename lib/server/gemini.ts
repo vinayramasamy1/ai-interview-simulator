@@ -7,6 +7,7 @@ export type InterviewQuestionInput = {
   targetRole: string;
   experienceLevel: string;
   jobDescription?: string;
+  resumeText?: string;
 };
 
 export type AnswerEvaluationInput = {
@@ -40,8 +41,13 @@ function buildInterviewPrompt({
   targetRole,
   experienceLevel,
   jobDescription,
+  resumeText,
 }: InterviewQuestionInput) {
   const trimmedJobDescription = jobDescription?.trim();
+  const trimmedResumeText = resumeText?.trim();
+  const hasResumeContext =
+    interviewType === "Resume-Based" &&
+    Boolean(trimmedResumeText && trimmedResumeText.length > 0);
 
   return `
 You are an expert interviewer creating a single realistic mock interview question.
@@ -55,11 +61,16 @@ Interview details:
       ? trimmedJobDescription
       : "Not provided"
   }
+- Resume context: ${
+    hasResumeContext ? trimmedResumeText : "Not provided"
+  }
 
 Instructions:
 - Write exactly one interview question.
 - Make it feel tailored to the target role and experience level.
 - Match the tone and style of the selected interview type.
+- If the interview type is Resume-Based, ground the question in specific projects, skills, responsibilities, or experience from the resume context when relevant.
+- For Resume-Based interviews, sound like a professional interviewer who has reviewed the candidate's resume and wants to dig deeper into real past work.
 - Keep it concise, natural, and professional.
 - Do not include bullet points, explanations, labels, or multiple questions.
 - Return only the question text.
