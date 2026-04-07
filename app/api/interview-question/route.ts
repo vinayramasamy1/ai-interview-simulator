@@ -17,6 +17,10 @@ function normalizeRequestBody(body: RequestBody): InterviewQuestionInput | null 
     experienceLevel,
     jobDescription,
     resumeText,
+    previousQuestion,
+    previousAnswer,
+    previousScore,
+    priorQuestions,
   } = body;
 
   if (
@@ -31,6 +35,20 @@ function normalizeRequestBody(body: RequestBody): InterviewQuestionInput | null 
     typeof jobDescription === "string" ? jobDescription.trim() : undefined;
   const normalizedResumeText =
     typeof resumeText === "string" ? resumeText.trim() : undefined;
+  const normalizedPreviousQuestion =
+    typeof previousQuestion === "string" ? previousQuestion.trim() : undefined;
+  const normalizedPreviousAnswer =
+    typeof previousAnswer === "string" ? previousAnswer.trim() : undefined;
+  const normalizedPreviousScore =
+    typeof previousScore === "number" && Number.isFinite(previousScore)
+      ? previousScore
+      : undefined;
+  const normalizedPriorQuestions = Array.isArray(priorQuestions)
+    ? priorQuestions
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : undefined;
 
   if (
     interviewType.trim() === "Resume-Based" &&
@@ -45,6 +63,10 @@ function normalizeRequestBody(body: RequestBody): InterviewQuestionInput | null 
     experienceLevel: experienceLevel.trim(),
     jobDescription: normalizedJobDescription,
     resumeText: normalizedResumeText,
+    previousQuestion: normalizedPreviousQuestion,
+    previousAnswer: normalizedPreviousAnswer,
+    previousScore: normalizedPreviousScore,
+    priorQuestions: normalizedPriorQuestions,
   };
 }
 

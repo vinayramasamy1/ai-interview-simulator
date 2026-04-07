@@ -468,6 +468,9 @@ export function InterviewSessionClient() {
                           interviewType: setupData.interviewType,
                           targetRole: setupData.targetRole,
                           experienceLevel: setupData.experienceLevel,
+                          jobDescription: setupData.jobDescription,
+                          resumeText: setupData.resumeText,
+                          priorQuestions: history.map((item) => item.question),
                         }),
                       });
 

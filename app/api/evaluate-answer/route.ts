@@ -17,6 +17,9 @@ function normalizeRequestBody(body: RequestBody): AnswerEvaluationInput | null {
     interviewType,
     targetRole,
     experienceLevel,
+    jobDescription,
+    resumeText,
+    priorQuestions,
   } = body;
 
   if (
@@ -35,6 +38,16 @@ function normalizeRequestBody(body: RequestBody): AnswerEvaluationInput | null {
     interviewType: interviewType.trim(),
     targetRole: targetRole.trim(),
     experienceLevel: experienceLevel.trim(),
+    jobDescription:
+      typeof jobDescription === "string" ? jobDescription.trim() : undefined,
+    resumeText:
+      typeof resumeText === "string" ? resumeText.trim() : undefined,
+    priorQuestions: Array.isArray(priorQuestions)
+      ? priorQuestions
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : undefined,
   };
 }
 
