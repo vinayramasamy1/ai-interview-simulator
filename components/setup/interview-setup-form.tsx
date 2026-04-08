@@ -27,6 +27,40 @@ type SetupFormData = Omit<
 
 type SetupFormErrors = Partial<Record<keyof SetupFormData, string>>;
 
+type ResumeUploadApiSuccess = {
+  success: true;
+  fileName: string;
+  resumeText: string;
+};
+
+type ResumeUploadApiError = {
+  success: false;
+  code?:
+    | "INVALID_CONTENT_TYPE"
+    | "MISSING_FILE"
+    | "INVALID_FILE_TYPE"
+    | "EMPTY_FILE"
+    | "FILE_TOO_LARGE"
+    | "PARSING_FAILURE"
+    | "SERVER_ERROR";
+  error?: string;
+};
+
+type ResumeUploadApiResponse = ResumeUploadApiSuccess | ResumeUploadApiError;
+
+type ResumeUploadResult =
+  | {
+      ok: true;
+      resumeFileName: string;
+      resumeText: string;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+type ResumeUploadSuccessResult = Extract<ResumeUploadResult, { ok: true }>;
+
 const initialFormData: SetupFormData = {
   interviewType: "",
   targetRole: "",
@@ -36,6 +70,25 @@ const initialFormData: SetupFormData = {
   resumeFileName: "",
   resumeText: "",
 };
+
+function getResumeUploadErrorMessage(payload: ResumeUploadApiError | null) {
+  switch (payload?.code) {
+    case "INVALID_FILE_TYPE":
+      return "Only PDF resumes are supported.";
+    case "MISSING_FILE":
+      return "Upload failed. Please choose a PDF resume.";
+    case "EMPTY_FILE":
+      return payload.error || "The uploaded resume is empty.";
+    case "FILE_TOO_LARGE":
+      return payload.error || "Please upload a PDF resume smaller than 5 MB.";
+    case "PARSING_FAILURE":
+      return payload.error || "Resume parsing failed.";
+    case "INVALID_CONTENT_TYPE":
+    case "SERVER_ERROR":
+    default:
+      return payload?.error || "Upload failed. Please try again.";
+  }
+}
 
 function hasValidSelections(
   values: SetupFormData,
@@ -150,12 +203,51 @@ export function InterviewSetupForm() {
     return nextErrors;
   }
 
-  async function uploadResumeIfNeeded() {
+  async function readResumeUploadResponse(
+    response: Response,
+  ): Promise<ResumeUploadApiResponse | null> {
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (!contentType.toLowerCase().includes("application/json")) {
+      const bodyText = await response.text();
+
+      console.error(
+        "Resume upload returned a non-JSON response.",
+        process.env.NODE_ENV === "development"
+          ? {
+              status: response.status,
+              contentType,
+              bodyPreview: bodyText.slice(0, 500),
+            }
+          : {
+              status: response.status,
+              contentType,
+            },
+      );
+
+      return null;
+    }
+
+    try {
+      return (await response.json()) as ResumeUploadApiResponse;
+    } catch (error) {
+      console.error("Resume upload returned invalid JSON.", {
+        error,
+        status: response.status,
+        contentType,
+      });
+
+      return null;
+    }
+  }
+
+  async function uploadResumeIfNeeded(): Promise<ResumeUploadResult> {
     const normalizedResumeFileName = formData.resumeFileName?.trim() ?? "";
     const normalizedResumeText = formData.resumeText?.trim() ?? "";
 
     if (!isResumeBased) {
       return {
+        ok: true,
         resumeFileName: "",
         resumeText: "",
       };
@@ -163,13 +255,17 @@ export function InterviewSetupForm() {
 
     if (normalizedResumeText && normalizedResumeFileName) {
       return {
+        ok: true,
         resumeFileName: normalizedResumeFileName,
         resumeText: normalizedResumeText,
       };
     }
 
     if (!resumeFile) {
-      throw new Error("Upload a PDF resume to start a Resume-Based interview.");
+      return {
+        ok: false,
+        message: "Upload a PDF resume to start a Resume-Based interview.",
+      };
     }
 
     const uploadData = new FormData();
@@ -183,15 +279,38 @@ export function InterviewSetupForm() {
         body: uploadData,
       });
 
-      const payload = (await response.json()) as
-        | { fileName?: string; resumeText?: string; error?: string }
-        | undefined;
+      const payload = await readResumeUploadResponse(response);
 
-      if (!response.ok || !payload?.resumeText || !payload.fileName) {
-        throw new Error(payload?.error || "Unable to process the uploaded resume.");
+      if (!payload) {
+        return {
+          ok: false,
+          message: "Upload failed. Please try again.",
+        };
       }
 
-      const uploadedResume = {
+      if (!response.ok || !payload.success) {
+        return {
+          ok: false,
+          message: getResumeUploadErrorMessage(
+            payload.success ? null : payload,
+          ),
+        };
+      }
+
+      if (!payload.resumeText?.trim() || !payload.fileName?.trim()) {
+        console.error("Resume upload JSON response was missing expected fields.", {
+          status: response.status,
+          payload,
+        });
+
+        return {
+          ok: false,
+          message: "Resume parsing failed.",
+        };
+      }
+
+      const uploadedResume: ResumeUploadSuccessResult = {
+        ok: true,
         resumeFileName: payload.fileName.trim(),
         resumeText: payload.resumeText.trim(),
       };
@@ -202,6 +321,16 @@ export function InterviewSetupForm() {
       }));
 
       return uploadedResume;
+    } catch (error) {
+      console.error("Resume upload request failed.", { error });
+
+      return {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Upload failed. Please try again.",
+      };
     } finally {
       setResumeUploadState("idle");
     }
@@ -241,18 +370,20 @@ export function InterviewSetupForm() {
       resumeText: formData.resumeText?.trim() ?? "",
     };
 
-    try {
-      uploadedResume = await uploadResumeIfNeeded();
-    } catch (error) {
+    const uploadResult = await uploadResumeIfNeeded();
+
+    if (!uploadResult.ok) {
       setErrors((current) => ({
         ...current,
-        resumeText:
-          error instanceof Error
-            ? error.message
-            : "Unable to process the uploaded resume.",
+        resumeText: uploadResult.message,
       }));
       return;
     }
+
+    uploadedResume = {
+      resumeFileName: uploadResult.resumeFileName,
+      resumeText: uploadResult.resumeText,
+    };
 
     const normalizedData: InterviewSetupData = {
       ...formData,
