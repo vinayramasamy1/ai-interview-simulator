@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   extractResumeTextFromPdf,
   ResumeParserError,
-  validateResumePdf,
+  resumePdfParserLibrary,
 } from "@/lib/server/resume-parser";
 
 export const runtime = "nodejs";
@@ -19,6 +19,7 @@ type ResumeUploadErrorCode =
   | "INVALID_FILE_TYPE"
   | "EMPTY_FILE"
   | "FILE_TOO_LARGE"
+  | "NO_TEXT"
   | "PARSING_FAILURE"
   | "SERVER_ERROR";
 
@@ -104,8 +105,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    await validateResumePdf(file);
     console.info("Resume upload parser starting.", {
+      parserLibrary: resumePdfParserLibrary,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
@@ -173,10 +174,11 @@ export async function POST(request: Request) {
           rejectedBy: "extractResumeTextFromPdf",
         });
 
-        return errorResponse("PARSING_FAILURE", message, 400);
+        return errorResponse("NO_TEXT", message, 400);
       }
 
       console.warn("Resume upload parsing failed.", {
+        parserLibrary: resumePdfParserLibrary,
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type,
@@ -192,6 +194,7 @@ export async function POST(request: Request) {
     }
 
     console.error("Unexpected resume upload failure.", {
+      parserLibrary: resumePdfParserLibrary,
       error,
       fileName: file.name,
       fileSize: file.size,

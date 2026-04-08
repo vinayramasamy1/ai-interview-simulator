@@ -16,10 +16,11 @@ import {
   type ResponseMode,
 } from "@/lib/interview-setup";
 
-type SetupFormData = Omit<
-  InterviewSetupData,
-  "interviewType" | "experienceLevel" | "responseMode"
-> & {
+type SetupFormData = {
+  targetRole: string;
+  jobDescription: string;
+  resumeFileName: string;
+  resumeText: string;
   interviewType: InterviewType | "";
   experienceLevel: ExperienceLevel | "";
   responseMode: ResponseMode | "";
@@ -41,6 +42,7 @@ type ResumeUploadApiError = {
     | "INVALID_FILE_TYPE"
     | "EMPTY_FILE"
     | "FILE_TOO_LARGE"
+    | "NO_TEXT"
     | "PARSING_FAILURE"
     | "SERVER_ERROR";
   error?: string;
@@ -60,6 +62,8 @@ type ResumeUploadResult =
     };
 
 type ResumeUploadSuccessResult = Extract<ResumeUploadResult, { ok: true }>;
+type ResumeTextSource = "none" | "upload" | "manual";
+const manualResumeFallbackFileName = "Manual resume text";
 
 const initialFormData: SetupFormData = {
   interviewType: "",
@@ -81,6 +85,11 @@ function getResumeUploadErrorMessage(payload: ResumeUploadApiError | null) {
       return payload.error || "The uploaded resume is empty.";
     case "FILE_TOO_LARGE":
       return payload.error || "Please upload a PDF resume smaller than 5 MB.";
+    case "NO_TEXT":
+      return (
+        payload.error ||
+        "Could not extract text from this PDF. Please try a text-based PDF resume."
+      );
     case "PARSING_FAILURE":
       return payload.error || "Resume parsing failed.";
     case "INVALID_CONTENT_TYPE":
@@ -92,7 +101,11 @@ function getResumeUploadErrorMessage(payload: ResumeUploadApiError | null) {
 
 function hasValidSelections(
   values: SetupFormData,
-): values is InterviewSetupData {
+): values is SetupFormData & {
+  interviewType: InterviewType;
+  experienceLevel: ExperienceLevel;
+  responseMode: ResponseMode;
+} {
   return (
     values.interviewType !== "" &&
     values.experienceLevel !== "" &&
@@ -111,6 +124,8 @@ export function InterviewSetupForm() {
   const [resumeUploadState, setResumeUploadState] = useState<
     "idle" | "uploading"
   >("idle");
+  const [resumeTextSource, setResumeTextSource] =
+    useState<ResumeTextSource>("none");
 
   const isResumeBased = formData.interviewType === "Resume-Based";
 
@@ -132,6 +147,7 @@ export function InterviewSetupForm() {
 
     if (name === "interviewType" && value !== "Resume-Based") {
       setResumeFile(null);
+      setResumeTextSource("none");
     }
 
     setErrors((current) => {
@@ -155,10 +171,32 @@ export function InterviewSetupForm() {
     const nextFile = event.target.files?.[0] ?? null;
 
     setResumeFile(nextFile);
+    setResumeTextSource("none");
     setFormData((current) => ({
       ...current,
       resumeFileName: nextFile?.name ?? "",
       resumeText: "",
+    }));
+    setErrors((current) => {
+      if (!current.resumeText) {
+        return current;
+      }
+
+      const nextErrors = { ...current };
+      delete nextErrors.resumeText;
+      return nextErrors;
+    });
+  }
+
+  function handleManualResumeTextChange(
+    event: ChangeEvent<HTMLTextAreaElement>,
+  ) {
+    const nextText = event.target.value;
+
+    setResumeTextSource(nextText.trim().length > 0 ? "manual" : "none");
+    setFormData((current) => ({
+      ...current,
+      resumeText: nextText,
     }));
     setErrors((current) => {
       if (!current.resumeText) {
@@ -253,7 +291,7 @@ export function InterviewSetupForm() {
       };
     }
 
-    if (normalizedResumeText && normalizedResumeFileName) {
+    if (resumeTextSource === "upload" && normalizedResumeText && normalizedResumeFileName) {
       return {
         ok: true,
         resumeFileName: normalizedResumeFileName,
@@ -261,10 +299,19 @@ export function InterviewSetupForm() {
       };
     }
 
+    if (resumeTextSource === "manual" && normalizedResumeText) {
+      return {
+        ok: true,
+        resumeFileName: normalizedResumeFileName || manualResumeFallbackFileName,
+        resumeText: normalizedResumeText,
+      };
+    }
+
     if (!resumeFile) {
       return {
         ok: false,
-        message: "Upload a PDF resume to start a Resume-Based interview.",
+        message:
+          "Upload a PDF resume or paste resume text to start a Resume-Based interview.",
       };
     }
 
@@ -315,9 +362,20 @@ export function InterviewSetupForm() {
         resumeText: payload.resumeText.trim(),
       };
 
+      setResumeTextSource("upload");
+      setErrors((current) => {
+        if (!current.resumeText) {
+          return current;
+        }
+
+        const nextErrors = { ...current };
+        delete nextErrors.resumeText;
+        return nextErrors;
+      });
       setFormData((current) => ({
         ...current,
-        ...uploadedResume,
+        resumeFileName: uploadedResume.resumeFileName,
+        resumeText: uploadedResume.resumeText,
       }));
 
       return uploadedResume;
@@ -385,17 +443,24 @@ export function InterviewSetupForm() {
       resumeText: uploadResult.resumeText,
     };
 
-    const normalizedData: InterviewSetupData = {
-      ...formData,
-      targetRole: formData.targetRole.trim(),
-      jobDescription: formData.jobDescription.trim(),
-      ...(isResumeBased
-        ? uploadedResume
+    const normalizedData: InterviewSetupData =
+      formData.interviewType === "Resume-Based"
+        ? {
+            interviewType: "Resume-Based",
+            targetRole: formData.targetRole.trim(),
+            experienceLevel: formData.experienceLevel,
+            responseMode: formData.responseMode,
+            jobDescription: formData.jobDescription.trim(),
+            resumeFileName: uploadedResume.resumeFileName,
+            resumeText: uploadedResume.resumeText,
+          }
         : {
-            resumeFileName: undefined,
-            resumeText: undefined,
-          }),
-    };
+            interviewType: formData.interviewType,
+            targetRole: formData.targetRole.trim(),
+            experienceLevel: formData.experienceLevel,
+            responseMode: formData.responseMode,
+            jobDescription: formData.jobDescription.trim(),
+          };
 
     setErrors({});
     clearInterviewSetup();
@@ -648,6 +713,37 @@ export function InterviewSetupForm() {
                   Selected resume: <span className="font-semibold">{formData.resumeFileName}</span>
                 </div>
               ) : null}
+              {isResumeBased && formData.resumeText.trim().length > 0 ? (
+                resumeTextSource === "manual" ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Using pasted resume text. Resume-Based questions will still work, but PDF-driven personalization may be more limited.
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                    Resume parsed successfully and ready for interview generation.
+                  </div>
+                )
+              ) : null}
+              <div className="mt-5">
+                <label
+                  htmlFor="resumeTextFallback"
+                  className="field-label"
+                >
+                  Manual Resume Text Fallback
+                </label>
+                <textarea
+                  id="resumeTextFallback"
+                  name="resumeTextFallback"
+                  value={resumeTextSource === "manual" ? formData.resumeText : ""}
+                  onChange={handleManualResumeTextChange}
+                  rows={8}
+                  placeholder="If PDF parsing fails, paste the main text of your resume here."
+                  className="field-control mt-3 min-h-40 rounded-[1.5rem]"
+                />
+                <p className="mt-3 helper-text">
+                  Preferred: upload a PDF. Fallback: paste resume text here if parsing fails so Resume-Based mode stays usable.
+                </p>
+              </div>
               {errors.resumeText ? (
                 <p id="resumeUpload-error" className="mt-3 text-sm text-rose-600">
                   {errors.resumeText}

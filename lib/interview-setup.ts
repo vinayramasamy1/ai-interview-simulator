@@ -18,12 +18,41 @@ export type InterviewType = (typeof interviewTypes)[number];
 export type ExperienceLevel = (typeof experienceLevels)[number];
 export type ResponseMode = (typeof responseModes)[number];
 
-export type InterviewSetupData = {
-  interviewType: InterviewType;
+type InterviewSetupBase = {
   targetRole: string;
   experienceLevel: ExperienceLevel;
   responseMode: ResponseMode;
   jobDescription: string;
+};
+
+export type ResumeBasedInterviewSetupData = InterviewSetupBase & {
+  interviewType: "Resume-Based";
+  resumeFileName: string;
+  resumeText: string;
+};
+
+export type StandardInterviewSetupData = InterviewSetupBase & {
+  interviewType: Exclude<InterviewType, "Resume-Based">;
+  resumeFileName?: undefined;
+  resumeText?: undefined;
+};
+
+export type InterviewSetupData =
+  | ResumeBasedInterviewSetupData
+  | StandardInterviewSetupData;
+
+export function isResumeBasedInterviewSetup(
+  value: InterviewSetupData | null | undefined,
+): value is ResumeBasedInterviewSetupData {
+  return Boolean(value && value.interviewType === "Resume-Based");
+}
+
+type InterviewSetupDataCandidate = {
+  interviewType?: unknown;
+  targetRole?: unknown;
+  experienceLevel?: unknown;
+  responseMode?: unknown;
+  jobDescription?: unknown;
   resumeFileName?: string;
   resumeText?: string;
 };
@@ -43,26 +72,34 @@ export function isInterviewSetupData(value: unknown): value is InterviewSetupDat
     return false;
   }
 
-  const candidate = value as Partial<InterviewSetupData>;
+  const candidate = value as Partial<InterviewSetupDataCandidate>;
+
+  if (
+    typeof candidate.interviewType !== "string" ||
+    !interviewTypes.includes(candidate.interviewType as InterviewType) ||
+    typeof candidate.targetRole !== "string" ||
+    candidate.targetRole.trim().length === 0 ||
+    typeof candidate.experienceLevel !== "string" ||
+    !experienceLevels.includes(candidate.experienceLevel as ExperienceLevel) ||
+    typeof candidate.responseMode !== "string" ||
+    !responseModes.includes(candidate.responseMode as ResponseMode) ||
+    typeof candidate.jobDescription !== "string"
+  ) {
+    return false;
+  }
+
+  if (candidate.interviewType === "Resume-Based") {
+    return (
+      typeof candidate.resumeFileName === "string" &&
+      candidate.resumeFileName.trim().length > 0 &&
+      typeof candidate.resumeText === "string" &&
+      candidate.resumeText.trim().length > 0
+    );
+  }
 
   return (
-    typeof candidate.interviewType === "string" &&
-    interviewTypes.includes(candidate.interviewType as InterviewType) &&
-    typeof candidate.targetRole === "string" &&
-    candidate.targetRole.trim().length > 0 &&
-    typeof candidate.experienceLevel === "string" &&
-    experienceLevels.includes(candidate.experienceLevel as ExperienceLevel) &&
-    typeof candidate.responseMode === "string" &&
-    responseModes.includes(candidate.responseMode as ResponseMode) &&
-    typeof candidate.jobDescription === "string" &&
-    (candidate.resumeFileName === undefined ||
-      typeof candidate.resumeFileName === "string") &&
-    (candidate.resumeText === undefined || typeof candidate.resumeText === "string") &&
-    ((candidate.interviewType as InterviewType) !== "Resume-Based" ||
-      (typeof candidate.resumeFileName === "string" &&
-        candidate.resumeFileName.trim().length > 0 &&
-        typeof candidate.resumeText === "string" &&
-        candidate.resumeText.trim().length > 0))
+    candidate.resumeFileName === undefined &&
+    candidate.resumeText === undefined
   );
 }
 

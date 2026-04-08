@@ -67,6 +67,9 @@ function buildInterviewPrompt({
   const hasResumeContext =
     interviewType === "Resume-Based" &&
     Boolean(trimmedResumeText && trimmedResumeText.length > 0);
+  const condensedResumeContext = hasResumeContext
+    ? trimmedResumeText!.slice(0, 4000)
+    : undefined;
   const hasAdaptiveContext =
     typeof previousScore === "number" &&
     Number.isFinite(previousScore) &&
@@ -93,7 +96,7 @@ Interview details:
       : "Not provided"
   }
 - Resume context: ${
-    hasResumeContext ? trimmedResumeText : "Not provided"
+    hasResumeContext ? condensedResumeContext : "Not provided"
   }
 - Previous question: ${
     trimmedPreviousQuestion && trimmedPreviousQuestion.length > 0
@@ -120,6 +123,7 @@ Instructions:
 - Match the tone and style of the selected interview type.
 - If the interview type is Resume-Based, ground the question in specific projects, skills, responsibilities, or experience from the resume context when relevant.
 - For Resume-Based interviews, sound like a professional interviewer who has reviewed the candidate's resume and wants to dig deeper into real past work.
+- For Resume-Based interviews, prefer concrete references to the candidate's background over generic role-based prompts.
 - ${adaptiveDifficultyGuidance}
 - If previous answer context is provided, reference the candidate's earlier answer naturally and challenge vague or incomplete claims.
 - Ask for evidence, tradeoffs, concrete examples, or implementation details when the previous score suggests the candidate can handle more depth.

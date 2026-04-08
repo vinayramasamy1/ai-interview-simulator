@@ -85,8 +85,13 @@ export async function POST(request: Request) {
   const normalizedBody = normalizeRequestBody(body);
 
   if (!normalizedBody) {
-    return Response.json(
-      { error: "Missing required fields" },
+    return NextResponse.json(
+      {
+        error:
+          body.interviewType === "Resume-Based"
+            ? "Resume-Based interviews require parsed resume text."
+            : "Missing required fields.",
+      },
       { status: 400 },
     );
   }

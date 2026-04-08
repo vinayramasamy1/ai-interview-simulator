@@ -1,9 +1,11 @@
 import "server-only";
 
-import { getDocument, VerbosityLevel } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { inspect } from "node:util";
+import { PDFParse } from "pdf-parse";
 
 const maxResumeFileSizeBytes = 5 * 1024 * 1024;
 const maxResumeTextLength = 12000;
+export const resumePdfParserLibrary = "pdf-parse";
 
 export class ResumeParserError extends Error {
   constructor(
@@ -65,49 +67,88 @@ export async function validateResumePdf(file: File) {
   }
 }
 
+async function extractResumeTextFromPdfBuffer(pdfBuffer: Buffer) {
+  let parser: PDFParse | null = null;
+
+  try {
+    console.info("Resume parser buffer extraction starting.", {
+      parserLibrary: resumePdfParserLibrary,
+      inputType: "Buffer",
+      byteLength: pdfBuffer.byteLength,
+    });
+
+    parser = new PDFParse({
+      data: pdfBuffer,
+    });
+
+    console.info("Resume parser constructed successfully.", {
+      parserLibrary: resumePdfParserLibrary,
+      inputType: "Buffer",
+    });
+
+    const result = await parser.getText();
+    console.info("Resume parser getText completed.", {
+      parserLibrary: resumePdfParserLibrary,
+      inputType: "Buffer",
+      extractedCharacters: result.text?.length ?? 0,
+    });
+
+    return normalizeResumeText(result.text ?? "");
+  } catch (error) {
+    console.error("Resume parser failed during construction or getText.", {
+      parserLibrary: resumePdfParserLibrary,
+      inputType: "Buffer",
+      stage: parser === null ? "constructor" : "getText",
+      message: error instanceof Error ? error.message : String(error),
+      rawError: inspect(error, { depth: 6 }),
+    });
+
+    if (error instanceof ResumeParserError) {
+      throw error;
+    }
+
+    throw new ResumeParserError(
+      "Resume parsing failed.",
+      "PARSING_FAILURE",
+    );
+  } finally {
+    if (parser) {
+      try {
+        await parser.destroy();
+        console.info("Resume parser destroy completed.", {
+          parserLibrary: resumePdfParserLibrary,
+          inputType: "Buffer",
+        });
+      } catch (destroyError) {
+        console.error("Resume parser destroy failed.", {
+          parserLibrary: resumePdfParserLibrary,
+          inputType: "Buffer",
+          message:
+            destroyError instanceof Error
+              ? destroyError.message
+              : String(destroyError),
+          rawError: inspect(destroyError, { depth: 6 }),
+        });
+      }
+    }
+  }
+}
+
 export async function extractResumeTextFromPdf(file: File) {
   await validateResumePdf(file);
-  const pdfData = new Uint8Array(await file.arrayBuffer());
-  const loadingTask = getDocument({
-    data: pdfData,
-    verbosity: VerbosityLevel.ERRORS,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    disableFontFace: true,
-  });
-  let document = null;
+  const pdfBuffer = Buffer.from(await file.arrayBuffer());
 
   try {
     console.info("Resume parser starting.", {
+      parserLibrary: resumePdfParserLibrary,
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
-      byteLength: pdfData.byteLength,
+      byteLength: pdfBuffer.byteLength,
+      inputType: "Buffer",
     });
 
-    document = await loadingTask.promise;
-
-    const pageTextParts: string[] = [];
-
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-
-      try {
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .join(" ")
-          .trim();
-
-        if (pageText) {
-          pageTextParts.push(pageText);
-        }
-      } finally {
-        page.cleanup();
-      }
-    }
-
-    const text = normalizeResumeText(pageTextParts.join("\n"));
+    const text = await extractResumeTextFromPdfBuffer(pdfBuffer);
 
     if (!text) {
       throw new ResumeParserError(
@@ -122,10 +163,12 @@ export async function extractResumeTextFromPdf(file: File) {
     };
   } catch (error) {
     console.error("Resume parser failed.", {
+      parserLibrary: resumePdfParserLibrary,
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
       reason: error instanceof Error ? error.message : "Unknown parser error",
+      rawError: inspect(error, { depth: 6 }),
     });
 
     if (error instanceof ResumeParserError) {
@@ -136,11 +179,5 @@ export async function extractResumeTextFromPdf(file: File) {
       "Resume parsing failed.",
       "PARSING_FAILURE",
     );
-  } finally {
-    await loadingTask.destroy();
-
-    if (document) {
-      await document.destroy();
-    }
   }
 }
