@@ -1,5 +1,6 @@
 import "server-only";
 
+import { inspect } from "node:util";
 import { GoogleGenAI } from "@google/genai";
 
 export type InterviewQuestionInput = {
@@ -36,14 +37,12 @@ export type AnswerEvaluation = AnswerEvaluationBase & {
   followUpQuestion: string;
 };
 
-const geminiApiKey = process.env.GEMINI_API_KEY;
-
 function getGeminiClient() {
-  if (!geminiApiKey) {
+  if (!process.env.GEMINI_API_KEY) {
     throw new Error("Missing GEMINI_API_KEY environment variable.");
   }
 
-  return new GoogleGenAI({ apiKey: geminiApiKey });
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 }
 
 function buildInterviewPrompt({
@@ -57,18 +56,19 @@ function buildInterviewPrompt({
   previousScore,
   priorQuestions,
 }: InterviewQuestionInput) {
-  const trimmedJobDescription = jobDescription?.trim();
-  const trimmedResumeText = resumeText?.trim();
+  const trimmedJobDescription = jobDescription?.trim().slice(0, 1000);
+  const trimmedResumeText = resumeText?.trim().slice(0, 2000);
   const trimmedPreviousQuestion = previousQuestion?.trim();
   const trimmedPreviousAnswer = previousAnswer?.trim();
   const sanitizedPriorQuestions = priorQuestions
     ?.map((question) => question.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(-3);
   const hasResumeContext =
     interviewType === "Resume-Based" &&
     Boolean(trimmedResumeText && trimmedResumeText.length > 0);
   const condensedResumeContext = hasResumeContext
-    ? trimmedResumeText!.slice(0, 4000)
+    ? trimmedResumeText
     : undefined;
   const hasAdaptiveContext =
     typeof previousScore === "number" &&
@@ -135,7 +135,13 @@ Instructions:
 }
 
 function normalizeQuestion(rawText: string) {
-  return rawText.replace(/\s+/g, " ").trim();
+  return rawText
+    .replace(/^```[\w-]*\s*/i, "")
+    .replace(/```$/i, "")
+    .replace(/^question:\s*/i, "")
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function buildAnswerEvaluationPrompt({
@@ -237,12 +243,32 @@ export async function generateInterviewQuestion(
   const client = getGeminiClient();
   const prompt = buildInterviewPrompt(input);
 
+  console.info("Gemini interview question payload.", {
+    input,
+    promptLength: prompt.length,
+  });
+
   const response = await client.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
   });
 
-  const question = normalizeQuestion(response.text ?? "");
+  console.info("Gemini raw interview question response.", {
+    rawTextLength: response.text?.length ?? 0,
+    rawText: response.text ?? "",
+    rawResponse: inspect(response, { depth: 3 }),
+  });
+
+  let question = "";
+
+  try {
+    question = normalizeQuestion(response.text ?? "");
+  } catch (error) {
+    console.error("Gemini question normalization failed.", {
+      error,
+      rawText: response.text ?? "",
+    });
+  }
 
   if (!question) {
     throw new Error("Gemini returned an empty question.");

@@ -1,11 +1,11 @@
 import "server-only";
 
 import { inspect } from "node:util";
-import { PDFParse } from "pdf-parse";
+import PDFParser from "pdf2json";
 
 const maxResumeFileSizeBytes = 5 * 1024 * 1024;
 const maxResumeTextLength = 12000;
-export const resumePdfParserLibrary = "pdf-parse";
+export const resumePdfParserLibrary = "pdf2json";
 
 export class ResumeParserError extends Error {
   constructor(
@@ -68,7 +68,7 @@ export async function validateResumePdf(file: File) {
 }
 
 async function extractResumeTextFromPdfBuffer(pdfBuffer: Buffer) {
-  let parser: PDFParse | null = null;
+  let parser: PDFParser | null = null;
 
   try {
     console.info("Resume parser buffer extraction starting.", {
@@ -77,23 +77,37 @@ async function extractResumeTextFromPdfBuffer(pdfBuffer: Buffer) {
       byteLength: pdfBuffer.byteLength,
     });
 
-    parser = new PDFParse({
-      data: pdfBuffer,
-    });
+    parser = new PDFParser(null, true);
+    const activeParser = parser;
 
     console.info("Resume parser constructed successfully.", {
       parserLibrary: resumePdfParserLibrary,
       inputType: "Buffer",
     });
 
-    const result = await parser.getText();
+    const result = await new Promise<string>((resolve, reject) => {
+      activeParser.on("pdfParser_dataReady", () => {
+        try {
+          resolve(activeParser.getRawTextContent());
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      activeParser.on("pdfParser_dataError", (error) => {
+        reject(error instanceof Error ? error : error.parserError);
+      });
+
+      activeParser.parseBuffer(pdfBuffer);
+    });
+
     console.info("Resume parser getText completed.", {
       parserLibrary: resumePdfParserLibrary,
       inputType: "Buffer",
-      extractedCharacters: result.text?.length ?? 0,
+      extractedCharacters: result.length,
     });
 
-    return normalizeResumeText(result.text ?? "");
+    return normalizeResumeText(result);
   } catch (error) {
     console.error("Resume parser failed during construction or getText.", {
       parserLibrary: resumePdfParserLibrary,
@@ -114,7 +128,7 @@ async function extractResumeTextFromPdfBuffer(pdfBuffer: Buffer) {
   } finally {
     if (parser) {
       try {
-        await parser.destroy();
+        parser.destroy();
         console.info("Resume parser destroy completed.", {
           parserLibrary: resumePdfParserLibrary,
           inputType: "Buffer",

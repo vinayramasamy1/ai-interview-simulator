@@ -40,6 +40,9 @@ const initialQuestionState: QuestionRequestState = {
   error: null,
 };
 
+const fallbackInterviewQuestion =
+  "Tell me about a project you worked on and a challenge you faced.";
+
 const initialEvaluationState: EvaluationState = {
   status: "idle",
   result: null,
@@ -117,19 +120,24 @@ export function InterviewSessionClient() {
           body: JSON.stringify(savedSetup),
         });
 
-        const payload = (await response.json()) as
-          | { question?: string; error?: string }
-          | undefined;
+        const contentType = response.headers.get("content-type") ?? "";
+        const payload = contentType.toLowerCase().includes("application/json")
+          ? ((await response.json()) as
+              | { question?: string; error?: string }
+              | undefined)
+          : undefined;
+        const question = payload?.question?.trim() || fallbackInterviewQuestion;
 
-        if (!response.ok || !payload?.question) {
-          throw new Error(
-            payload?.error || "Unable to generate the first question.",
-          );
+        if (!response.ok) {
+          console.error("Interview question request returned a non-OK response.", {
+            status: response.status,
+            payload,
+          });
         }
 
         setQuestionState({
           status: "success",
-          question: payload.question,
+          question,
           error: null,
         });
         saveInterviewSession({
@@ -137,22 +145,26 @@ export function InterviewSessionClient() {
           status: "active",
           currentQuestionNumber: 1,
           totalQuestions: totalInterviewQuestions,
-          currentQuestion: payload.question,
+          currentQuestion: question,
           history: [],
         });
       } catch (error) {
-        setQuestionState({
-          status: "error",
-          question: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to generate the first question.",
+        console.error("Interview question bootstrap failed, using fallback question.", {
+          error,
         });
-        saveInterviewSetupState({
-          setup: null,
-          status: "idle",
-          updatedAt: new Date().toISOString(),
+
+        setQuestionState({
+          status: "success",
+          question: fallbackInterviewQuestion,
+          error: null,
+        });
+        saveInterviewSession({
+          setup: savedSetup,
+          status: "active",
+          currentQuestionNumber: 1,
+          totalQuestions: totalInterviewQuestions,
+          currentQuestion: fallbackInterviewQuestion,
+          history: [],
         });
       }
     }
